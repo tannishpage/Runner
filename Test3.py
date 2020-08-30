@@ -58,8 +58,15 @@ def get_data(fkml):
 def get_speed(time, dist, accuracy):
     speed = []
     sub = int(accuracy/2)
-    for i in range(sub, len(dist)-sub):
-        s = (dist[i-sub] - dist[i+sub])/((time[i-sub] - time[i+sub])/60)
+    for i in range(0, len(dist)):
+        if (i - sub) < 0 and (i + sub) < len(dist):
+            s = (dist[i] - dist[i+sub])/((time[i] - time[i+sub])/60)
+        elif (i - sub) > 0 and (i + sub) >= len(dist):
+            s = (dist[i-sub] - dist[len(dist) - 1])/((time[i-sub] - time[len(dist) - 1])/60)
+        elif (i - sub) < 0 and (i + sub) >= len(dist):
+            s = (dist[i] - dist[len(dist) - 1])/((time[i] - time[len(dist) - 1])/60)
+        else:# (i - sub) > 0 and (i + sub) < len(dist):
+            s = (dist[i-sub] - dist[i+sub])/((time[i-sub] - time[i+sub])/60)
         speed.append(s)
     return speed
 
@@ -69,7 +76,7 @@ def get_running_times(running_threshold, speed, accuracy):
     sub = accuracy/2
     im_high = False
     for i, d in enumerate(speed):
-        if d > running_threshold:
+        if d >= running_threshold:
             start = int(i - sub)
             im_high = True
         if im_high and d < running_threshold:
@@ -83,8 +90,15 @@ def get_total_running_distance(dist, run_times):
         distance = distance + abs(dist[pair[0]] - dist[pair[1]])
     return distance
 
+def get_avg_speed(speed, run_times, accuracy):
+    sub = accuracy//2
+    avg = 0
+    for pair in run_times:
+        avg += sum(speed[pair[0]+sub:pair[1]-sub])/len(speed[pair[0]+sub:pair[1]-sub])
+    return avg/len(run_times)
+
 def main():
-    running_threshold = 8.5
+    running_threshold = 10
     distance = 0
     accuracy = 20
     ks = ["R1.kml", "R2.kml", "R3.kml"]
@@ -93,12 +107,13 @@ def main():
         speed = get_speed(time, dist, accuracy)
         run_times = get_running_times(running_threshold, speed, accuracy)
         distance = get_total_running_distance(dist, run_times)
-        print("Total Run Times for {}: {:.2f}km".format(k, distance))
-        plot(time[0:-accuracy], speed)
+        print("Total Run Distance for {}: {:.2f}km".format(k, distance))
+        print("Average Running Speed: {}kmph".format(get_avg_speed(speed, run_times, accuracy)))
+        plot(time, speed)
     
     xlabel("Time (Minutes)")
     ylabel("Speed (Kmph)")
-    legend(['2020-08-26', '2020-08-28', '2020-08-30'])
+    legend(ks)
     show()
 if __name__ == "__main__":
     main()

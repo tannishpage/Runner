@@ -21,9 +21,6 @@ def euc_dis(coord1, coord2):
     y = dy1 - dy2
     return sqrt(x**2 + y**2)
 
-k1 = "doc.kml"
-k2 = "2doc.kml"
-
 def get_data(fkml):
     data = open(fkml, 'r').read()
     doc = html.fromstring(data.encode())
@@ -58,23 +55,50 @@ def get_data(fkml):
                     #print(dis)
     return dist, time
 
-def get_speed(time, dist):
+def get_speed(time, dist, accuracy):
     speed = []
-    for i in range(1, 644):
-        s = (dist[i-1] - dist[i+1])/((time[i-1] - time[i+1])/60)
+    sub = int(accuracy/2)
+    for i in range(sub, len(dist)-sub):
+        s = (dist[i-sub] - dist[i+sub])/((time[i-sub] - time[i+sub])/60)
         speed.append(s)
     return speed
 
+def get_running_times(running_threshold, speed, accuracy):
+    over_threshold = []
+    start = 0
+    sub = accuracy/2
+    im_high = False
+    for i, d in enumerate(speed):
+        if d > running_threshold:
+            start = int(i - sub)
+            im_high = True
+        if im_high and d < running_threshold:
+            im_high = False
+            over_threshold.append([start, int(i + sub)])
+    return over_threshold
 
-dist1, time1 = get_data(k1)
-speed1 = get_speed(time1, dist1)
+def get_total_running_distance(dist, run_times):
+    distance = 0
+    for pair in run_times:
+        distance = distance + abs(dist[pair[0]] - dist[pair[1]])
+    return distance
 
-plot(time1[0:-2], speed1)
-xlabel("Time (Seconds)")
-ylabel("Speed (Kmph)")
-
-dist2, time2 = get_data(k2)
-speed2 = get_speed(time2, dist2)
-
-plot(time2[0:-2], speed2)
-legend(["28-08-2020", "26-08-2020"])
+def main():
+    running_threshold = 8.5
+    distance = 0
+    accuracy = 20
+    ks = ["R1.kml", "R2.kml", "R3.kml"]
+    for k in ks:
+        dist, time = get_data(k)
+        speed = get_speed(time, dist, accuracy)
+        run_times = get_running_times(running_threshold, speed, accuracy)
+        distance = get_total_running_distance(dist, run_times)
+        print("Total Run Times for {}: {:.2f}km".format(k, distance))
+        plot(time[0:-accuracy], speed)
+    
+    xlabel("Time (Minutes)")
+    ylabel("Speed (Kmph)")
+    legend(['2020-08-26', '2020-08-28', '2020-08-30'])
+    show()
+if __name__ == "__main__":
+    main()

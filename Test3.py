@@ -3,6 +3,7 @@ import cssselect
 from math import radians, cos, sin, asin, sqrt, degrees
 from matplotlib.pyplot import *
 import datetime
+import os
 
 def haversine(coord1, coord2):
   # convert decimal degrees to radians
@@ -76,7 +77,7 @@ def get_running_times(running_threshold, speed, accuracy):
     sub = accuracy/2
     im_high = False
     for i, d in enumerate(speed):
-        if d >= running_threshold:
+        if d >= running_threshold and not im_high:
             start = int(i - sub)
             im_high = True
         if im_high and d < running_threshold:
@@ -90,29 +91,48 @@ def get_total_running_distance(dist, run_times):
         distance = distance + abs(dist[pair[0]] - dist[pair[1]])
     return distance
 
-def get_avg_speed(speed, run_times, accuracy):
-    sub = accuracy//2
+def get_avg_speed(dist, time, run_times):
     avg = 0
     for pair in run_times:
-        avg += sum(speed[pair[0]+sub:pair[1]-sub])/len(speed[pair[0]+sub:pair[1]-sub])
+        avg += (dist[pair[0]] - dist[pair[1]])/((time[pair[0]] - time[pair[1]])/60)
     return avg/len(run_times)
 
+def get_top_speed_per_run_interval(speed, run_times):
+    max_per_run = []
+    for pair in run_times:
+        max_per_run.append(max(speed[pair[0]:pair[1]]))
+    return max_per_run
 def main():
-    running_threshold = 10
-    distance = 0
-    accuracy = 20
-    ks = ["R1.kml", "R2.kml", "R3.kml"]
+    running_threshold = 8
+    accuracy = 26
+    ks = [x for x in os.listdir(os.getcwd()) if os.path.isfile(x) and x.endswith(".kml")]
     for k in ks:
         dist, time = get_data(k)
         speed = get_speed(time, dist, accuracy)
         run_times = get_running_times(running_threshold, speed, accuracy)
-        distance = get_total_running_distance(dist, run_times)
-        print("Total Run Distance for {}: {:.2f}km".format(k, distance))
-        print("Average Running Speed: {}kmph".format(get_avg_speed(speed, run_times, accuracy)))
+        print("Summary for {}:".format(k))
+        print("\tTotal Distance Ran: {:.2f} km".format(get_total_running_distance(dist, run_times)))
+        print("\tAverage Running Speed: {:.2f} km/h".format(get_avg_speed(dist, time, run_times)))
+        for i, r in enumerate(get_top_speed_per_run_interval(speed, run_times)):
+            print("\tMax Speed for interval {}: {:.2f} km/h".format(i+1, r))
+        figure(0)
+        plot(dist, speed)
+        figure(1)
+        plot(dist, time)
+        figure(2)
         plot(time, speed)
-    
+        
+    figure(0)
+    xlabel("Distance (Kilometers)")
+    ylabel("Speed (Km/h)")
+    legend(ks)
+    figure(1)
+    xlabel("Distance (Kilometers)")
+    ylabel("Time (Minutes)")
+    legend(ks)
+    figure(2)
     xlabel("Time (Minutes)")
-    ylabel("Speed (Kmph)")
+    ylabel("Speed (Km/h)")
     legend(ks)
     show()
 if __name__ == "__main__":
